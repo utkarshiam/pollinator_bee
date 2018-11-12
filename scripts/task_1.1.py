@@ -121,15 +121,15 @@ class DroneFly():
 			self.pluto_cmd.publish(self.cmd)
 
 	
-	self.last_err_roll = 0
-	self.last_err_pitch = 0
-	self.last_err_thro = 0
+	last_err_roll = 0
+	last_err_pitch = 0
+	last_err_thro = 0
 
-	self.dt = 0 # current_time ~ time elapsed from the last iteration 
+	dt = 0 # current_time ~ time elapsed from the last iteration 
 
-	self.iterm_pitch = 0
-	self.iterm_roll = 0
-	self.iterm_thro = 0
+	iterm_pitch = 0
+	iterm_roll = 0
+	iterm_thro = 0
 
 	def calc_pid(self):
 		self.seconds = time.time()
@@ -152,9 +152,9 @@ class DroneFly():
 		# differential control
 		self.dErr = (self.error_roll - self.last_err_roll) / dt
 		
-		self.output = (self.kp_roll * self.error_roll) + (self.ki_roll * self.iterm_roll) + (self.kd_roll * self.dErr)
+		self.output = (self.kp_roll * error_roll) + (self.ki_roll * iterm_roll) + (self.kd_roll * dErr)
 
-		self.last_err_roll = error_roll
+		last_err_roll = error_roll
 		self.last_time = time.time()
 
 
