@@ -1,2 +1,4 @@
-# pollinator_bee
-Boilerplate package for the Pollinator Bee Theme of e-YRC 2018
+# Namak Beta
+
+## pollinator_bee
+Our personal version of the Pollinator Bee Theme of e-YRC 2018
