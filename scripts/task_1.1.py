@@ -76,6 +76,15 @@ class DroneFly():
 		# Loop time for PID computation. You are free to experiment with this
 		self.last_time = 0.0
 		self.loop_time = 0.032
+		self.last_err_roll = 0
+		self.last_err_pitch = 0
+		self.last_err_throt = 0
+
+		self.dt = 0 # current_time ~ time elapsed from the last iteration 
+
+		self.iterm_pitch = 0
+		self.iterm_roll = 0
+		self.iterm_throt = 0
 
 		rospy.sleep(.1)
 
@@ -121,23 +130,15 @@ class DroneFly():
 			self.pluto_cmd.publish(self.cmd)
 
 	
-	last_err_roll = 0
-	last_err_pitch = 0
-	last_err_thro = 0
-
-	dt = 0 # current_time ~ time elapsed from the last iteration 
-
-	iterm_pitch = 0
-	iterm_roll = 0
-	iterm_thro = 0
+	
 
 	def calc_pid(self):
 		self.seconds = time.time()
 		self.dt = self.seconds - self.last_time
-		if(dt >= self.loop_time):
+		if(self.dt >= self.loop_time):
 			self.pid_roll()
 			self.pid_pitch()
-			self.pid_thro()
+			self.pid_throt()
 			
 			self.last_time = self.seconds
 
@@ -147,14 +148,14 @@ class DroneFly():
 		self.error_roll = self.wp_x - self.drone_x
 		
 		# Integral control
-		iterm_roll += (self.error_roll * self.dt) 
+		self.iterm_roll += (self.error_roll * self.dt) 
 
 		# differential control
-		self.dErr = (self.error_roll - self.last_err_roll) / dt
+		dErr = (self.error_roll - self.last_err_roll) / self.dt
 		
-		self.output = (self.kp_roll * error_roll) + (self.ki_roll * iterm_roll) + (self.kd_roll * dErr)
+		self.output = (self.kp_roll * self.error_roll) + (self.ki_roll * self.iterm_roll) + (self.kd_roll * dErr)
 
-		last_err_roll = error_roll
+		self.last_err_roll = self.error_roll
 		self.last_time = time.time()
 
 
@@ -163,14 +164,14 @@ class DroneFly():
 		self.error_pitch = self.wp_x - self.drone_x
 		
 		# Integral control
-		iterm_pitch += (self.error_pitch * self.dt) 
+		self.iterm_pitch += (self.error_pitch * self.dt) 
 
 		# differential control
-		self.dErr = (self.error_pitch - self.last_err_pitch) / dt
+		dErr = (self.error_pitch - self.last_err_pitch) / self.dt
 		
-		self.output = (self.kp_pitch * self.error_pitch) + (self.ki_pitch * self.iterm_pitch) + (self.kd_pitch * self.dErr)
+		self.output = (self.kp_pitch * self.error_pitch) + (self.ki_pitch * self.iterm_pitch) + (self.kd_pitch * dErr)
 
-		self.last_err_pitch = error_pitch
+		self.last_err_pitch = self.error_pitch
 		self.last_time = time.time()
 		
 		#self.error_pitch = self.wp_y - self.drone_y 
@@ -182,22 +183,22 @@ class DroneFly():
 
 
 	def pid_throt(self):
-		self.error_thro = self.wp_x - self.drone_x
+		self.error_throt = self.wp_x - self.drone_x
 		
 		# Integral control
-		iterm_thro += (self.error_thro * self.dt) 
+		self.iterm_throt += (self.error_throt * self.dt) 
 
 		# differential control
-		self.dErr = (self.error_thro - self.last_err_thro) / dt
+		dErr = (self.error_throt - self.last_err_throt) / self.dt
 		
-		self.output = (self.kp_thro * self.error_thro) + (self.ki_thro * self.iterm_thro) + (self.kd_thro * self.dErr)
+		self.output = (self.kp_throt * self.error_throt) + (self.ki_throt * self.iterm_throt) + (self.kd_throt * dErr)
 
-		self.last_err_thro = error_thro
+		self.last_err_throt = self.error_throt
 		self.last_time = time.time()
 
 
 		#self.error_throt = self.wp_z - self.drone_z 
-		#iterm_thro += (self.error_throt * self.current_time)
+		#iterm_throt += (self.error_throt * self.current_time)
 		#self.dErr = (self.error_throt - self.correct_throt)
 		#self.output = self.kp_throt * self.error_throt + self.ki_throt * self.errSum + self.kd_throt * self.dErr
 		#self.correct_throt = self.error_throt
