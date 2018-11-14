@@ -22,6 +22,11 @@ class DroneFly():
 		rospy.Subscriber('/pid_tuning_roll', PidTune, self.set_pid_roll)
 		rospy.Subscriber('/pid_tuning_pitch', PidTune, self.set_pid_pitch)
 		rospy.Subscriber('/pid_tuning_yaw', PidTune, self.set_pid_yaw)
+
+		# To publish the drone errors\
+		self.pub_roll = rospy.Publisher('error_roll', Float64, queue_size=5)
+		self.pub_throt = rospy.Publisher('error_throt', Float64, queue_size=5)
+		self.pub_pitch = rospy.Publisher('error_pitch', Float64, queue_size=5)
 		
 		self.cmd = PlutoMsg()
 
@@ -134,12 +139,15 @@ class DroneFly():
 		 	print self.correct_throt
 
 		 	pitch_value = int(1500 + self.correct_pitch)
+			self.pub_pitch.publish(pitch_value)
 			self.cmd.rcPitch = self.limit (pitch_value, 1600, 1400)
 															
 			roll_value = int(1500 + self.correct_roll)
+			self.pub_roll.publish(roll_value)
 			self.cmd.rcRoll = self.limit(roll_value, 1600,1400)
 															
 			throt_value = int(1500 + self.correct_throt)
+			self.pub_throt.publish(throt_value)
 			self.cmd.rcThrottle = self.limit(throt_value, 1750,1350)
 															
 			self.pluto_cmd.publish(self.cmd)
@@ -170,10 +178,6 @@ class DroneFly():
 		self.last_time= self.current_time
 		self.Le_r=error
 		self.correct_roll= self.Pterm_R + (self.ki_roll * self.Iterm_R) + (self.kd_roll * self.Dterm_R)
-
-
-
-
 
 
 	def pid_pitch(self):
@@ -237,10 +241,7 @@ class DroneFly():
 		else:
 			return input_value
 
-	#You can use this function to publish different information for your plots
-	# def publish_plot_data(self):
-
-
+			
 	def set_pid_alt(self,pid_val):
 		
 		#This is the subscriber function to get the Kp, Ki and Kd values set through the GUI for Altitude
