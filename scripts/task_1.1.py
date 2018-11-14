@@ -5,9 +5,9 @@ from plutodrone.msg import *
 from pid_tune.msg import *
 from geometry_msgs.msg import PoseArray
 from std_msgs.msg import Int32
+from std_msgs.msg import Float64
 import rospy
 import time
-
 
 
 class DroneFly():
@@ -25,13 +25,18 @@ class DroneFly():
 		rospy.Subscriber('/pid_tuning_roll', PidTune, self.set_pid_roll)
 		rospy.Subscriber('/pid_tuning_pitch', PidTune, self.set_pid_pitch)
 		rospy.Subscriber('/pid_tuning_yaw', PidTune, self.set_pid_yaw)
+
+		# To publish the drone errors\
+		self.pub_roll = rospy.Publisher('error_roll', Float64, queue_size=5)
+		self.pub_throt = rospy.Publisher('error_throt', Float64, queue_size=5)
+		self.pub_pitch = rospy.Publisher('error_pitch', Float64, queue_size=5)
 		
 		self.cmd = PlutoMsg()
 
 		# Position to hold.
-		self.wp_x = -5.63
-		self.wp_y = -5.63
-		self.wp_z = 10.0
+		self.wp_x = 0.0
+		self.wp_y = 0.0
+		self.wp_z = 0.0
 		
 		self.cmd.rcRoll = 1500
 		self.cmd.rcPitch = 1500
@@ -63,7 +68,7 @@ class DroneFly():
 		self.kd_yaw = 0.0
 
 		#PID constants for Throttle
-		self.kp_throt = 0.0
+		self.kp_throt = 0.3
 		self.ki_throt = 0.0
 		self.kd_throt = 0.0
 
@@ -76,15 +81,15 @@ class DroneFly():
 		# Loop time for PID computation. You are free to experiment with this
 		self.last_time = 0.0
 		self.loop_time = 0.032
-		self.last_err_roll = 0
-		self.last_err_pitch = 0
-		self.last_err_throt = 0
+		self.last_err_roll = 0.0
+		self.last_err_pitch = 0.0
+		self.last_err_throt = 0.0
 
-		self.dt = 0 # current_time ~ time elapsed from the last iteration 
+		self.dt = 0.0 # current_time ~ time elapsed from the last iteration 
 
-		self.iterm_pitch = 0
-		self.iterm_roll = 0
-		self.iterm_throt = 0
+		self.iterm_pitch = 0.0
+		self.iterm_roll = 0.0
+		self.iterm_throt = 0.0
 
 		rospy.sleep(.1)
 
@@ -101,7 +106,11 @@ class DroneFly():
 		rospy.sleep(.1)
 
 
-	def position_hold(self):
+	def position_hold(self, p_x, p_y, p_z):
+
+		self.wp_x = p_x
+		self.wp_y = p_y
+		self.wp_z = p_z
 
 		rospy.sleep(2)
 
@@ -124,15 +133,10 @@ class DroneFly():
 			roll_value = int(1500 - self.correct_roll)
 			self.cmd.rcRoll = self.limit(roll_value, 1600,1400)
 															
-			throt_value = int(1500 - self.correct_throt)
+			throt_value = int(1500 + self.correct_throt)
 			self.cmd.rcThrottle = self.limit(throt_value, 1750,1350)
 															
 			self.pluto_cmd.publish(self.cmd)
-		
-		publish_plot_data(self, self.output)
-		publish_plot_data(self, self.error_roll)
-		publish_plot_data(self, self.error_pitch)
-		publish_plot_data(self, self.error_throt)
 	
 
 	def calc_pid(self):
@@ -158,10 +162,11 @@ class DroneFly():
 		# differential control
 		dErr = (self.error_roll - self.last_err_roll) / self.dt
 		
-		self.output = (self.kp_roll * self.error_roll) + (self.ki_roll * self.iterm_roll) + (self.kd_roll * dErr)
+		self.correct_roll = (self.kp_roll * self.error_roll) + (self.ki_roll * self.iterm_roll) + (self.kd_roll * dErr)
 
 		self.last_err_roll = self.error_roll
-		self.last_time = time.time()
+		self.pub_roll.publish(self.error_roll)
+		# self.last_time = time.time()
 
 
 	def pid_pitch(self):
@@ -174,40 +179,28 @@ class DroneFly():
 		# differential control
 		dErr = (self.error_pitch - self.last_err_pitch) / self.dt
 		
-		self.output = (self.kp_pitch * self.error_pitch) + (self.ki_pitch * self.iterm_pitch) + (self.kd_pitch * dErr)
+		self.correct_pitch = (self.kp_pitch * self.error_pitch) + (self.ki_pitch * self.iterm_pitch) + (self.kd_pitch * dErr)
 		
 		self.last_err_pitch = self.error_pitch
-		self.last_time = time.time()
-		
-		#self.error_pitch = self.wp_y - self.drone_y 
-		#iterm_pitch += (self.error_pitch * self.current_time)
-		#self.dErr = self.error_pitch - self.correct_pitch
-		#self.output = self.kp_pitch * self.error_pitch + self.ki_pitch * self.errSum + self.kd_pitch * self.dErr
-		#self.correct_pitch = self.error_pitch
-		#self.last_time = self.current_time
+		self.pub_pitch.publish(self.error_pitch)
+		# self.last_time = time.time()
 
 
 	def pid_throt(self):
 		self.error_throt = self.wp_x - self.drone_x
 		
 		# Integral control
-		self.iterm_throt += (self.error_throt * self.dt) 
+		self.iterm_throt += (self.error_throt * self.dt)
 
 		# differential control
 		dErr = (self.error_throt - self.last_err_throt) / self.dt
 		
-		self.output = (self.kp_throt * self.error_throt) + (self.ki_throt * self.iterm_throt) + (self.kd_throt * dErr)
+		self.correct_throt = (self.kp_throt * self.error_throt) + (self.ki_throt * self.iterm_throt) + (self.kd_throt * dErr)
 
 		self.last_err_throt = self.error_throt
-		self.last_time = time.time()
+		self.pub_throt.publish(self.error_throt)
+		# self.last_time = time.time()
 
-
-		#self.error_throt = self.wp_z - self.drone_z 
-		#iterm_throt += (self.error_throt * self.current_time)
-		#self.dErr = (self.error_throt - self.correct_throt)
-		#self.output = self.kp_throt * self.error_throt + self.ki_throt * self.errSum + self.kd_throt * self.dErr
-		#self.correct_throt = self.error_throt
-		#self.last_time = self.current_time
 
 	def limit(self, input_value, max_value, min_value):
 
@@ -220,9 +213,6 @@ class DroneFly():
 		else:
 			return input_value
 
-	#You can use this function to publish different information for your plots
-	def publish_plot_data(self, data):
-		rospy.Publisher('/error', String, data)
 
 	def set_pid_alt(self,pid_val):
 		
@@ -269,5 +259,5 @@ class DroneFly():
 if __name__ == '__main__':
 	while not rospy.is_shutdown():
 		temp = DroneFly()
-		temp.position_hold()
+		temp.position_hold(-5.63,-5.63,10)
 		rospy.spin()
