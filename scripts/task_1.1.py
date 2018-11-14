@@ -31,7 +31,7 @@ class DroneFly():
 		# Position to hold.
 		self.wp_x = -5.63
 		self.wp_y = -5.63
-		self.wp_z = 30.0
+		self.wp_z = 10.0
 		
 		self.cmd.rcRoll = 1500
 		self.cmd.rcPitch = 1500
@@ -88,7 +88,7 @@ class DroneFly():
 
 		rospy.sleep(.1)
 
-
+	
 	def arm(self):
 		self.cmd.rcAUX4 = 1500
 		self.cmd.rcThrottle = 1000
@@ -118,24 +118,29 @@ class DroneFly():
 
 			# Check your X and Y axis. You MAY have to change the + and the -.
 			# We recommend you try one degree of freedom (DOF) at a time. Eg: Roll first then pitch and so on
-		 	pitch_value = int(1500 + self.correct_pitch)
+		 	pitch_value = int(1500 - self.correct_pitch)
 			self.cmd.rcPitch = self.limit (pitch_value, 1600, 1400)
 															
-			roll_value = int(1500 + self.correct_roll)
+			roll_value = int(1500 - self.correct_roll)
 			self.cmd.rcRoll = self.limit(roll_value, 1600,1400)
 															
 			throt_value = int(1500 - self.correct_throt)
 			self.cmd.rcThrottle = self.limit(throt_value, 1750,1350)
 															
 			self.pluto_cmd.publish(self.cmd)
-
-	
+		
+		publish_plot_data(self, self.output)
+		publish_plot_data(self, self.error_roll)
+		publish_plot_data(self, self.error_pitch)
+		publish_plot_data(self, self.error_throt)
 	
 
 	def calc_pid(self):
 		self.seconds = time.time()
 		self.dt = self.seconds - self.last_time
 		if(self.dt >= self.loop_time):
+			# publish_plot_data()
+
 			self.pid_roll()
 			self.pid_pitch()
 			self.pid_throt()
@@ -146,7 +151,7 @@ class DroneFly():
 	def pid_roll(self):
 
 		self.error_roll = self.wp_x - self.drone_x
-		
+
 		# Integral control
 		self.iterm_roll += (self.error_roll * self.dt) 
 
@@ -170,7 +175,7 @@ class DroneFly():
 		dErr = (self.error_pitch - self.last_err_pitch) / self.dt
 		
 		self.output = (self.kp_pitch * self.error_pitch) + (self.ki_pitch * self.iterm_pitch) + (self.kd_pitch * dErr)
-
+		
 		self.last_err_pitch = self.error_pitch
 		self.last_time = time.time()
 		
@@ -216,8 +221,8 @@ class DroneFly():
 			return input_value
 
 	#You can use this function to publish different information for your plots
-	# def publish_plot_data(self):
-
+	def publish_plot_data(self, data):
+		rospy.Publisher('/error', String, data)
 
 	def set_pid_alt(self,pid_val):
 		
