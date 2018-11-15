@@ -130,118 +130,37 @@ class DroneFly():
 
 		while True:
 
-			self.pid_roll()
-			self.pid_pitch()
-			self.pid_throt()
+            roll_pid, err = self.pid_control(wp_y, self.drone_y, self.last_error_roll, self.sigma_error_roll, self.kp_roll, self.kd_roll, self.ki_roll)
+            self.sigma_error_roll += err
+            self.last_error_roll = err
+            self.cmd.rcRoll += int(self.limit(1500 + roll_pid, 1750, 1350))
 
-			# Check your X and Y axis. You MAY have to change the + and the -.
-			# We recommend you try one degree of freedom (DOF) at a time. Eg: Roll first then pitch and so on
-		 	print self.correct_throt
+            throt_pid, err = self.pid_control(wp_z, self.drone_z, self.last_error_throt, self.sigma_error_throt, self.kp_throt, self.kd_throt, self.ki_throt)
+            self.sigma_error_throt += err
+            self.last_error_throt = err
+            self.cmd.rcPitch += int(self.limit(1500 + pitch_pid, 1600, 1400))
 
-		 	pitch_value = int(1500 + self.correct_pitch)
-			self.pub_pitch.publish(pitch_value)
-			self.cmd.rcPitch = self.limit (pitch_value, 1600, 1400)
-															
-			roll_value = int(1500 + self.correct_roll)
-			self.pub_roll.publish(roll_value)
-			self.cmd.rcRoll = self.limit(roll_value, 1600,1400)
-															
-			throt_value = int(1500 + self.correct_throt)
-			self.pub_throt.publish(throt_value)
-			self.cmd.rcThrottle = self.limit(throt_value, 1750,1350)
+            pitch_pid, err = self.pid_control(wp_x, self.drone_x, self.last_error_pitch, self.sigma_error_pitch, self.kp_pitch, self.kd_pitch, self.ki_pitch)
+            self.sigma_error_pitch += err
+            self.last_error_pitch = err
+            self.cmd.rcThrottle += int(self.limit(1500 + throt_pid, 1600, 1400))
 															
 			self.pluto_cmd.publish(self.cmd)
 
 	
-	def pid_controller(self, control, target, last_error):
-		self.dt = time.time() - self.last_time
+	def pid_control(self, target, current, last_error, sigma_error, kp, kd, ki):
+		dt = time.time() - self.last_time
 		if(dt >= self.sample_time):
-			error = target - control
+			error = target - currents
 			sigma_error += error * dt
 			diff_err = (error - last_error) / dt
 
-		out = (Kp * error) + (Kd * diff_err) + (Ki * sigma_error)
+		out = (kp * error) + (kd * diff_err) + (ki * sigma_error)
 		last_error = error
+        self.last_time = time.time()
 
-		return out
+		return out, error
 
-
-	# def pid_roll(self):
-
-	# 	#Compute Roll PID here
-
-	# 	error=self.wp_x - self.drone_x
-	# 	self.current_time= time.time()
-	# 	delta_time=self.current_time-self.last_time
-	# 	delta_error= error - self.Le_r
-	# 	if (delta_time >= self.sample_time):
-	# 		self.Pterm_R=self.kp_roll * error
-	# 		self.Iterm_R += error * delta_time
-
-	# 	if (self.Iterm_R< -self.windup_guard):
-	# 		self.Iterm_R= -self.windup_guard
-
-	# 	elif(self.Iterm_R > self.windup_guard):
-	# 		self.Iterm_R= self.windup_guard
-
-	# 	self.Dterm_R=0.0
-	# 	if(delta_time > 0.0):
-	# 		self.Dterm_R=delta_error / delta_time
-
-	# 	self.last_time= self.current_time
-	# 	self.Le_r=error
-	# 	self.correct_roll= self.Pterm_R + (self.ki_roll * self.Iterm_R) + (self.kd_roll * self.Dterm_R)
-
-
-	# def pid_pitch(self):
-
-	# 	#Compute Pitch PID here
-	# 	error=self.wp_y - self.drone_y
-	# 	self.current_time= time.time() / 1000
-	# 	delta_time=self.current_time-self.last_time
-	# 	delta_error= error - self.Le_p
-	# 	if (delta_time >= self.sample_time):
-	# 		self.Pterm_P=self.kp_pitch * error
-	# 		self.Iterm_P += error * delta_time
-
-	# 	if (self.Iterm_P< -self.windup_guard):
-	# 		self.Iterm_P= -self.windup_guard
-
-	# 	elif(self.Iterm_P > self.windup_guard):
-	# 		self.Iterm_P= self.windup_guard
-
-	# 	self.Dterm_P=0.0
-	# 	if(delta_time > 0.0):
-	# 		self.Dterm_P=delta_error / delta_time
-
-	# 	self.last_time= self.current_time
-	# 	self.Le_p=error
-	# 	self.correct_pitch= self.Pterm_P + (self.ki_pitch * self.Iterm_P) + (self.kd_pitch * self.Dterm_P)
-
-	# def pid_throt(self):
-
-	# 	#Compute Throttle PID here
-	# 	error=self.wp_z - self.drone_z
-	# 	self.current_time= time.time() / 1000
-	# 	delta_time=self.current_time-self.last_time
-	# 	delta_error= error - self.Le_t
-	# 	if (delta_time >= self.sample_time):
-	# 		self.Pterm_T=self.kp_throt * error
-	# 		self.Iterm_T += error * delta_time
-
-	# 	if (self.Iterm_T< -self.windup_guard):
-	# 		self.Iterm_T= -self.windup_guard
-
-	# 	elif(self.Iterm_T > self.windup_guard):
-	# 		self.Iterm_T= self.windup_guard
-
-	# 	self.Dterm_T=0.0
-	# 	if(delta_time > 0.0):
-	# 		self.Dterm_T=delta_error / delta_time
-
-	# 	self.last_time= self.current_time
-	# 	self.Le_t=error
-	# 	self.correct_throt= self.Pterm_T + (self.ki_throt * self.Iterm_T) + (self.kd_throt * self.Dterm_T)
 
 	def limit(self, input_value, max_value, min_value):
 
