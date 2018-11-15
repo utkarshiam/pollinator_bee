@@ -80,27 +80,28 @@ class DroneFly():
 		self.current_time=time.time()
 		self.last_time = self.current_time
 		self.sample_time = 0.050
-		self.Pterm_R=0.0
-		self.Pterm_P=0.0
-		self.Pterm_T=0.0
+		self.Pterm_R = 0.0
+		self.Pterm_P = 0.0
+		self.Pterm_T = 0.0
 
-		self.Iterm_R=0.0
-		self.Iterm_P=0.0
-		self.Iterm_T=0.0
+		self.Iterm_R = 0.0
+		self.Iterm_P = 0.0
+		self.Iterm_T = 0.0
 
-		self.Dterm_R=0.0
-		self.Dterm_P=0.0
-		self.Dterm_T=0.0
+		self.Dterm_R = 0.0
+		self.Dterm_P = 0.0
+		self.Dterm_T = 0.0
 		
-		self.int_error=0.0
-		self.windup_guard=20.0
-		# self.output_roll=0.0
-		# self.output_pitch=0.0
-		# self.output_throt=0.0
+		self.int_error = 0.0
+		self.windup_guard = 20.0
 
-		self.Le_r=0.0
-		self.Le_p=0.0
-		self.Le_t=0.0
+        self.last_error_roll = 0.0
+        self.last_error_pitch = 0.0
+        self.last_error_throt = 0.0
+
+        self.sigma_error_roll = 0.0
+        self.sigma_error_pitch = 0.0
+        self.sigma_error_throt = 0.0
 
 		rospy.sleep(.1)
 
@@ -129,18 +130,17 @@ class DroneFly():
 		rospy.sleep(.1)
 
 		while True:
-
-            roll_pid, err = self.pid_control(wp_y, self.drone_y, self.last_error_roll, self.sigma_error_roll, self.kp_roll, self.kd_roll, self.ki_roll)
+            roll_pid, err = self.pid_control(self.wp_y, self.drone_y, self.last_error_roll, self.sigma_error_roll, self.kp_roll, self.kd_roll, self.ki_roll)
             self.sigma_error_roll += err
             self.last_error_roll = err
             self.cmd.rcRoll += int(self.limit(1500 + roll_pid, 1750, 1350))
-
-            throt_pid, err = self.pid_control(wp_z, self.drone_z, self.last_error_throt, self.sigma_error_throt, self.kp_throt, self.kd_throt, self.ki_throt)
+            
+            throt_pid, err = self.pid_control(self.wp_z, self.drone_z, self.last_error_throt, self.sigma_error_throt, self.kp_throt, self.kd_throt, self.ki_throt)
             self.sigma_error_throt += err
             self.last_error_throt = err
             self.cmd.rcPitch += int(self.limit(1500 + pitch_pid, 1600, 1400))
-
-            pitch_pid, err = self.pid_control(wp_x, self.drone_x, self.last_error_pitch, self.sigma_error_pitch, self.kp_pitch, self.kd_pitch, self.ki_pitch)
+            
+            pitch_pid, err = self.pid_control(self.wp_x, self.drone_x, self.last_error_pitch, self.sigma_error_pitch, self.kp_pitch, self.kd_pitch, self.ki_pitch)
             self.sigma_error_pitch += err
             self.last_error_pitch = err
             self.cmd.rcThrottle += int(self.limit(1500 + throt_pid, 1600, 1400))
@@ -158,8 +158,8 @@ class DroneFly():
 		out = (kp * error) + (kd * diff_err) + (ki * sigma_error)
 		last_error = error
         self.last_time = time.time()
-
-		return out, error
+        
+        return out, error
 
 
 	def limit(self, input_value, max_value, min_value):
